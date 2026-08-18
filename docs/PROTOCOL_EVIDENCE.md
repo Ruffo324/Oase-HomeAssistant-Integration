@@ -25,7 +25,7 @@ device-identifying data (IP/MAC/serial/SSID) into this file.
 
 | Finding | Evidence source | Interpretation | Confidence |
 |---|---|---|---|
-| _No findings recorded yet._ | | | |
+| A one-shot standard mDNS/DNS-SD service query and SSDP `M-SEARCH ssdp:all` query, run for a 5s listen window each, did not surface any device identifying as OASE/FM-Master on the tested LAN | live-device observation | Inconclusive: standard multicast discovery alone did not confirm the device supports either protocol in this run; the device may not have been present/powered on the tested segment at test time. See `docs/DEVICE_DISCOVERY.md` for the full sanitized run report | unknown |
 
 ## Transport / application protocol
 
