@@ -1,0 +1,103 @@
+# =============================================================================
+# Clean-room / confidentiality boundary
+# See OASE_HOME_ASSISTANT_AGENT_PROMPT.md for the rules these paths enforce.
+# Nothing matching these patterns may be committed, regardless of directory.
+# =============================================================================
+
+# Legacy/vendor reference material, archives, and any local mirror of it.
+# This project must never contain a copy of historical source examples.
+/reference/
+/vendor-reference/
+/legacy-source/
+reference-bundle/
+oase-hass/
+**/oase-hass/
+*.tar
+*.tar.gz
+*.tgz
+
+# Private research notes, evidence journal, and inventories.
+# Investigation questions derived from private review live here, never
+# excerpts, file lists, symbol names, or code from proprietary sources.
+/private/
+/notes/
+docs/private/
+PRIVATE_*.md
+*_PRIVATE.md
+EVIDENCE_JOURNAL*.md
+INVENTORY*.md
+SOURCE_INVENTORY*.md
+
+# Network traffic captures and discovery scan output.
+*.pcap
+*.pcapng
+*.cap
+/captures/
+/traffic/
+/scans/
+
+# Logs.
+*.log
+*.log.*
+/logs/
+
+# Credentials, secrets, and key material.
+secrets.yaml
+secrets.yml
+credentials.json
+credentials.yaml
+credentials.yml
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+.netrc
+.pgpass
+id_rsa*
+id_ed25519*
+/.secrets/
+
+# Home Assistant local runtime data (device state, tokens, may hold secrets).
+/config/
+.storage/
+home-assistant.log*
+home-assistant_v2.db*
+
+# =============================================================================
+# Python build / cache artifacts
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.tox/
+.nox/
+.venv/
+venv/
+env/
+build/
+dist/
+*.egg-info/
+.eggs/
+.coverage
+.coverage.*
+htmlcov/
+.cache/
+
+# =============================================================================
+# Editor / OS
+# =============================================================================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.bak
+*.tmp
