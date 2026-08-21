@@ -180,19 +180,28 @@ def _parse_dns_message(data: bytes) -> dict[str, Any]:
     return {"records": records}
 
 
-def mdns_discover(timeout: float) -> list[dict[str, Any]]:
-    """Send standard DNS-SD queries, listen briefly, return parsed responses."""
+def mdns_discover(timeout: float, source_ip: str | None = None) -> list[dict[str, Any]]:
+    """Send standard DNS-SD queries, listen briefly, return parsed responses.
+
+    If source_ip is given, multicast egress and group membership are bound
+    to that local interface address so the query reaches only the network
+    reachable from that interface (e.g. a single-purpose device AP subnet)
+    instead of whichever interface the default route happens to prefer.
+    """
     recv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     recv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     if hasattr(socket, "SO_REUSEPORT"):
         recv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
     recv_sock.bind(("", MDNS_PORT))
-    mreq = struct.pack("4s4s", socket.inet_aton(MDNS_ADDR), socket.inet_aton("0.0.0.0"))
+    mreq = struct.pack("4s4s", socket.inet_aton(MDNS_ADDR), socket.inet_aton(source_ip or "0.0.0.0"))
     recv_sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
     recv_sock.settimeout(0.5)
 
     send_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     send_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 1)
+    if source_ip:
+        send_sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(source_ip))
+        send_sock.bind((source_ip, 0))
 
     for qname in MDNS_QUERY_NAMES:
         send_sock.sendto(_build_dns_query(qname), (MDNS_ADDR, MDNS_PORT))
@@ -221,7 +230,12 @@ def mdns_discover(timeout: float) -> list[dict[str, Any]]:
 # --------------------------------------------------------------------------
 
 
-def ssdp_discover(timeout: float, mx: int = 2) -> list[dict[str, Any]]:
+def ssdp_discover(timeout: float, mx: int = 2, source_ip: str | None = None) -> list[dict[str, Any]]:
+    """Send a standard SSDP M-SEARCH and listen briefly.
+
+    If source_ip is given, egress is bound to that local interface address
+    (see mdns_discover docstring for why this matters on multi-homed hosts).
+    """
     msg = (
         "M-SEARCH * HTTP/1.1\r\n"
         f"HOST: {SSDP_ADDR}:{SSDP_PORT}\r\n"
@@ -233,6 +247,9 @@ def ssdp_discover(timeout: float, mx: int = 2) -> list[dict[str, Any]]:
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+    if source_ip:
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(source_ip))
+        sock.bind((source_ip, 0))
     sock.settimeout(0.5)
     sock.sendto(msg, (SSDP_ADDR, SSDP_PORT))
 
@@ -258,6 +275,119 @@ def ssdp_discover(timeout: float, mx: int = 2) -> list[dict[str, Any]]:
 
 
 # --------------------------------------------------------------------------
+# Targeted single-host probe (opt-in, rate-limited, gateway-only)
+# --------------------------------------------------------------------------
+
+# Curated, small set of well-known ports plausible for a local IoT
+# config/control surface. This is a bounded, fixed list probed once each
+# with a delay between attempts -- not a port scan. Only ever point this
+# at a single device you own/administer (e.g. its own AP gateway address),
+# never at a subnet or third-party hosts.
+COMMON_PORT_CANDIDATES: dict[int, str] = {
+    22: "ssh",
+    23: "telnet",
+    53: "dns",
+    80: "http",
+    443: "https",
+    502: "modbus",
+    1883: "mqtt",
+    7777: "misc-iot",
+    8080: "http-alt",
+    8443: "https-alt",
+    8883: "mqtts",
+    9999: "misc-iot",
+}
+
+# Standard/publicly documented UDP service ports. Same bounded, single-host,
+# low-rate approach as the TCP list above.
+UDP_PORT_CANDIDATES: dict[int, str] = {
+    53: "dns",
+    123: "ntp",
+    161: "snmp",
+    3702: "ws-discovery",
+    5683: "coap",
+}
+
+
+def probe_udp_port(host: str, port: int, timeout: float) -> bool:
+    """Send one empty datagram, true if any reply arrives from that host:port."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    sock.settimeout(timeout)
+    try:
+        sock.sendto(b"", (host, port))
+        data, addr = sock.recvfrom(4096)
+        return addr[0] == host
+    except OSError:
+        return False
+    finally:
+        sock.close()
+
+
+def probe_tcp_port(host: str, port: int, timeout: float) -> bool:
+    """Single TCP connect attempt. True if the port accepted a connection."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def probe_http_banner(host: str, port: int, use_tls: bool, timeout: float) -> dict[str, Any]:
+    """Single HTTP HEAD request. Returns status line + headers only, never body."""
+    try:
+        import http.client
+
+        conn_cls = http.client.HTTPSConnection if use_tls else http.client.HTTPConnection
+        conn = conn_cls(host, port, timeout=timeout)
+        conn.request("HEAD", "/")
+        resp = conn.getresponse()
+        result: dict[str, Any] = {
+            "status": resp.status,
+            "reason": resp.reason,
+            "headers": dict(resp.getheaders()),
+        }
+        conn.close()
+        return result
+    except Exception as exc:  # noqa: BLE001 - best-effort banner probe
+        return {"error": str(exc)}
+
+
+def targeted_probe(host: str, delay: float = 0.3, timeout: float = 1.5) -> dict[str, Any]:
+    """Low-rate, single-host probe of a curated port list plus a minimal
+    HTTP HEAD banner check on any open HTTP(S)-plausible port. Intended
+    for use against the device's own AP gateway address only, after
+    passive discovery, per docs/RESEARCH_METHOD.md."""
+    open_ports: dict[int, str] = {}
+    for port, label in COMMON_PORT_CANDIDATES.items():
+        if probe_tcp_port(host, port, timeout):
+            open_ports[port] = label
+        time.sleep(delay)
+
+    http_banners: dict[int, Any] = {}
+    for port in (80, 8080):
+        if port in open_ports:
+            http_banners[port] = probe_http_banner(host, port, use_tls=False, timeout=timeout)
+            time.sleep(delay)
+    for port in (443, 8443):
+        if port in open_ports:
+            http_banners[port] = probe_http_banner(host, port, use_tls=True, timeout=timeout)
+            time.sleep(delay)
+
+    udp_open: dict[int, str] = {}
+    for port, label in UDP_PORT_CANDIDATES.items():
+        if probe_udp_port(host, port, timeout):
+            udp_open[port] = label
+        time.sleep(delay)
+
+    return {
+        "host": host,
+        "open_ports": open_ports,
+        "http_banners": http_banners,
+        "udp_responding": udp_open,
+    }
+
+
+# --------------------------------------------------------------------------
 # Orchestration
 # --------------------------------------------------------------------------
 
@@ -267,13 +397,16 @@ class DiscoveryResult:
     local_network: dict[str, Any] = field(default_factory=dict)
     mdns_responses: list[dict[str, Any]] = field(default_factory=list)
     ssdp_responses: list[dict[str, Any]] = field(default_factory=list)
+    targeted: dict[str, Any] | None = None
 
 
-def run(timeout: float) -> DiscoveryResult:
+def run(timeout: float, target_host: str | None = None, source_ip: str | None = None) -> DiscoveryResult:
     result = DiscoveryResult()
     result.local_network = inspect_local_network()
-    result.mdns_responses = mdns_discover(timeout)
-    result.ssdp_responses = ssdp_discover(timeout)
+    result.mdns_responses = mdns_discover(timeout, source_ip=source_ip)
+    result.ssdp_responses = ssdp_discover(timeout, source_ip=source_ip)
+    if target_host:
+        result.targeted = targeted_probe(target_host)
     return result
 
 
@@ -291,9 +424,30 @@ def main() -> None:
         default=Path("scans/discover_oase_raw.json"),
         help="Where to write raw JSON results (local-only, git-ignored)",
     )
+    parser.add_argument(
+        "--target-host",
+        type=str,
+        default=None,
+        help=(
+            "Optional: run a low-rate, curated-port TCP probe against this "
+            "single host only (e.g. the device's own AP gateway address). "
+            "Never point this at a subnet or third-party host."
+        ),
+    )
+    parser.add_argument(
+        "--source-ip",
+        type=str,
+        default=None,
+        help=(
+            "Optional: bind mDNS/SSDP multicast egress to this local "
+            "interface address, so queries reach a specific subnet on a "
+            "multi-homed host instead of whichever interface the default "
+            "route happens to prefer."
+        ),
+    )
     args = parser.parse_args()
 
-    result = run(args.timeout)
+    result = run(args.timeout, target_host=args.target_host, source_ip=args.source_ip)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(
@@ -302,6 +456,7 @@ def main() -> None:
                 "local_network": result.local_network,
                 "mdns_responses": result.mdns_responses,
                 "ssdp_responses": result.ssdp_responses,
+                "targeted": result.targeted,
             },
             indent=2,
         )
@@ -311,6 +466,8 @@ def main() -> None:
     print(f"Neighbour table entries: {len(result.local_network.get('neighbours') or [])}")
     print(f"mDNS responses received: {len(result.mdns_responses)}")
     print(f"SSDP responses received: {len(result.ssdp_responses)}")
+    if result.targeted:
+        print(f"Targeted probe open ports: {sorted(result.targeted.get('open_ports', {}).keys())}")
     print(f"Raw results written to: {args.out}")
     print("NOTE: raw output may contain IP/MAC/hostname data. Do not commit it.")
     print("Review manually and write a redacted summary to docs/DEVICE_DISCOVERY.md.")
