@@ -30,12 +30,17 @@ integration without cloud access.
 All four outlets were switched on individually, read back successfully, then
 restored to their original state. This validates local control end-to-end.
 
-## Remaining release work
+## Release status
 
-1. Install the custom component in an actual Home Assistant configuration.
-2. Complete HA config-flow/platform smoke testing inside a normal HA runtime.
-3. Add a GitHub Actions test workflow and user-facing README.
-4. Review naming, documentation, diagnostics redaction, then release.
+Complete for the stated local-control goal.
+
+- HA lifecycle smoke test passed: integration setup created all four switch
+  entities from the live FM-Master state.
+- Unit/component suite passes.
+- All four local outlets were validated with readback and restored to their
+  original state.
+- Source review confirmed private credentials, TLS materials, captures, and
+  reference analysis remain ignored.
 
 ## Security
 

@@ -45,8 +45,10 @@ belongs in Git.
 Private test utilities, traffic captures, credentials, and reference analysis
 are intentionally gitignored.
 
-## Known limitation
+## Verification
 
-The component is hardware-validated and unit-tested, but its full config-flow
-and entity-registration lifecycle still needs a smoke test inside a standard
-running Home Assistant installation.
+- 30 unit/component tests pass.
+- Home Assistant lifecycle smoke test passed: setup created all four switch
+  entities with current live-device state.
+- Real FM-Master validation switched every outlet on, verified each readback,
+  then restored the original state.
