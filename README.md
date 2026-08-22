@@ -52,3 +52,16 @@ are intentionally gitignored.
   entities with current live-device state.
 - Real FM-Master validation switched every outlet on, verified each readback,
   then restored the original state.
+- Home-network onboarding succeeded: the FM-Master is reachable on the local
+  LAN, and the same HA lifecycle smoke test created all four switch entities
+  through its LAN address.
+
+## Home Assistant UI setup
+
+1. Copy `custom_components/oase_fm` into Home Assistant's `custom_components/`.
+2. Restart Home Assistant.
+3. **Settings → Devices & services → Add integration → OASE FM-Master Local**.
+4. Enter the FM-Master's current LAN address and its device password.
+
+The config flow stores the address/password in Home Assistant's encrypted
+configuration storage. No OASE cloud account is used.

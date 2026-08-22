@@ -39,6 +39,9 @@ Complete for the stated local-control goal.
 - Unit/component suite passes.
 - All four local outlets were validated with readback and restored to their
   original state.
+- Home-network onboarding succeeded: FM-Master DHCP lease is reachable on LAN;
+  the HA lifecycle smoke test created all four entities through the LAN address.
+- UI config flow is tested and accepts the LAN host plus device password.
 - Source review confirmed private credentials, TLS materials, captures, and
   reference analysis remain ignored.
 
