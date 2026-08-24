@@ -33,9 +33,21 @@ class FmMasterClient:
 
     @staticmethod
     def parse_socket_states(payload: bytes) -> tuple[bool, bool, bool, bool]:
-        if len(payload) < 16 or payload[9] != 101 or payload[10] < 4:
+        if len(payload) < 16 or payload[9] != 101 or payload[10] < 5:
             raise ValueError("response does not contain an FM-Master socket scene")
         return tuple(value >= 128 for value in payload[11:15])  # type: ignore[return-value]
+
+    @staticmethod
+    def parse_dimmer_level(payload: bytes) -> int:
+        if len(payload) < 16 or payload[9] != 101 or payload[10] < 5:
+            raise ValueError("response does not contain an FM-Master dimmer scene")
+        return payload[15]
+
+    @staticmethod
+    def dimmer_scene(level: int) -> bytes:
+        if not 0 <= level <= 255:
+            raise ValueError("dimmer level must be in range 0 through 255")
+        return bytes((4,)) + struct.pack("<II", 0, 0) + bytes((100, 2, 4, level))
 
     async def read_sockets(self) -> tuple[bool, bool, bool, bool]:
         _, payload = await self._session_factory().request(0xC500, bytes((4,)) + struct.pack("<I", 0))
@@ -61,11 +73,28 @@ class LiveFmMasterClient:
         finally:
             await session.close()
 
+    async def read_dimmer_level(self) -> int:
+        session = await self._open_session()
+        try:
+            _, payload = await session.request(0xC500, bytes((4,)) + struct.pack("<I", 0))
+            return FmMasterClient.parse_dimmer_level(payload)
+        finally:
+            await session.close()
+
     async def set_socket(self, socket: int, on: bool) -> None:
         session = await self._open_session()
         try:
             packet_type, payload = await session.request(0xC400, FmMasterClient.socket_scene(socket=socket, on=on))
             if packet_type != 0xC4FF or payload != b"\x01":
                 raise ValueError("FM-Master rejected socket command")
+        finally:
+            await session.close()
+
+    async def set_dimmer_level(self, level: int) -> None:
+        session = await self._open_session()
+        try:
+            packet_type, payload = await session.request(0xC400, FmMasterClient.dimmer_scene(level))
+            if packet_type != 0xC4FF or payload != b"\x01":
+                raise ValueError("FM-Master rejected dimmer command")
         finally:
             await session.close()

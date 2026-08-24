@@ -3,7 +3,7 @@
 DOMAIN = "oase_fm"
 CONF_HOST = "host"
 CONF_PASSWORD = "password"
-PLATFORMS = ["switch"]
+PLATFORMS = ["switch", "light"]
 DATA_CLIENT = "client"
 DATA_COORDINATOR = "coordinator"
 UPDATE_INTERVAL_SECONDS = 30

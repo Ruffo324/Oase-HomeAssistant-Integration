@@ -23,11 +23,11 @@ class FakeCoordinator:
         return self.states
 
 
-def test_ha_switch_exposes_fourth_outlet_identity() -> None:
-    entity = OaseFmSwitch(FakeCoordinator(), 3)
+def test_ha_switch_exposes_relay_outlet_identity() -> None:
+    entity = OaseFmSwitch(FakeCoordinator(), 2)
 
-    assert entity.name == "Outlet 4"
-    assert entity.unique_id == "oase_fm_socket_4"
+    assert entity.name == "Outlet 3"
+    assert entity.unique_id == "oase_fm_socket_3"
     assert entity.is_on is False
 
 

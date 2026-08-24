@@ -18,7 +18,8 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator: FmMasterCoordinator = hass.data[DOMAIN][entry.entry_id][DATA_COORDINATOR]
-    async_add_entities([OaseFmSwitch(coordinator, socket) for socket in range(SOCKET_COUNT)])
+    # Outlets 1–3 are relays. Outlet 4 is exposed once as a brightness light.
+    async_add_entities([OaseFmSwitch(coordinator, socket) for socket in range(SOCKET_COUNT - 1)])
 
 
 class OaseFmSwitch(SwitchEntity):

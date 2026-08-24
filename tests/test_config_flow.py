@@ -1,19 +1,42 @@
 import asyncio
 
-from custom_components.oase_fm.config_flow import OaseFmConfigFlow
+from custom_components.oase_fm.config_flow import (
+    MODE_AP_ONBOARD,
+    MODE_EXISTING,
+    OaseFmConfigFlow,
+)
 
 
-def test_config_flow_shows_home_network_form() -> None:
+def test_config_flow_shows_mode_picker() -> None:
     flow = OaseFmConfigFlow()
     result = asyncio.run(flow.async_step_user())
 
     assert result["type"] == "form"
     assert result["step_id"] == "user"
+    assert "setup_mode" in str(result["data_schema"])
+
+
+def test_existing_lan_path_shows_host_and_password_form() -> None:
+    flow = OaseFmConfigFlow()
+    result = asyncio.run(flow.async_step_user({"setup_mode": MODE_EXISTING}))
+
+    assert result["type"] == "form"
+    assert result["step_id"] == "existing"
     assert "host" in str(result["data_schema"])
     assert "password" in str(result["data_schema"])
 
 
-def test_config_flow_creates_entry() -> None:
+def test_ap_onboarding_path_shows_wifi_credentials_form() -> None:
+    flow = OaseFmConfigFlow()
+    result = asyncio.run(flow.async_step_user({"setup_mode": MODE_AP_ONBOARD}))
+
+    assert result["type"] == "form"
+    assert result["step_id"] == "ap_onboard"
+    assert "wifi_ssid" in str(result["data_schema"])
+    assert "wifi_password" in str(result["data_schema"])
+
+
+def test_create_gateway_entry() -> None:
     flow = OaseFmConfigFlow()
 
     async def set_unique_id(unique_id: str) -> None:
@@ -22,7 +45,8 @@ def test_config_flow_creates_entry() -> None:
     flow.async_set_unique_id = set_unique_id
     flow._abort_if_unique_id_configured = lambda: None
 
-    result = asyncio.run(flow.async_step_user({"host": "192.168.178.102", "password": "x"}))
+    result = asyncio.run(flow._async_create_gateway_entry("192.168.178.102", "x"))
 
     assert result["type"] == "create_entry"
     assert result["data"]["host"] == "192.168.178.102"
+    assert result["data"]["password"] == "x"

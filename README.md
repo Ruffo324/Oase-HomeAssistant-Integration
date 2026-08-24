@@ -20,10 +20,25 @@ Assistant must be reachable by the FM-Master over the same local network.
 
 ## Entities
 
-- `Outlet 1`
-- `Outlet 2`
-- `Outlet 3`
-- `Outlet 4`
+- `Outlet 1` — relay switch
+- `Outlet 2` — relay switch
+- `Outlet 3` — relay switch
+- `Outlet 4 dimmer` — brightness light, 0–255
+
+## UI onboarding
+
+For an already reachable gateway, choose **Existing LAN gateway** and enter its
+LAN address plus device password.
+
+For a factory-reset gateway, first connect the Home Assistant host to the
+FM-Master access point. Choose **Gateway AP onboarding**, enter the AP host,
+device password, home Wi-Fi SSID, and home Wi-Fi password. The integration
+submits DHCP router configuration. After the gateway joins the router, enter
+its DHCP address from the router in the final UI step.
+
+Home Assistant cannot itself switch an arbitrary host's Wi-Fi connection to a
+gateway AP; that prerequisite remains platform/network configuration outside a
+custom integration.
 
 ## Local operation
 
