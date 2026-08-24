@@ -41,7 +41,7 @@ Complete for the stated local-control goal.
   original state.
 - Home-network onboarding succeeded: FM-Master DHCP lease is reachable on LAN;
   the HA lifecycle smoke test created all four entities through the LAN address.
-- UI config flow is tested for existing-LAN access plus AP-to-home-network onboarding.
+- UI config flow is tested for existing-LAN access plus dual-interface AP-to-home-network onboarding, including automatic post-DHCP O-Net discovery and manual fallback.
 - Fourth output is validated as a 0–255 brightness light; relay outputs 1–3 remain switches.
 - Source review confirmed private credentials, TLS materials, captures, and
   reference analysis remain ignored.

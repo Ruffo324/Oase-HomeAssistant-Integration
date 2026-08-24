@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime
+import socket
 from collections.abc import Awaitable, Callable
+
+from .transport import ONetV2, parse_packet
 
 
 def _fixed(value: str, length: int) -> bytes:
@@ -50,6 +54,39 @@ def build_router_initial_config(device_password: str, ssid: str, wifi_password: 
     if len(payload) != 452:
         raise AssertionError(len(payload))
     return payload
+
+
+async def async_discover_gateway_host(
+    probe: Callable[[], Awaitable[str | None]] | None = None,
+    *,
+    timeout: float = 4.0,
+) -> str | None:
+    """Discover a single O-Net v2 gateway on the LAN after AP provisioning.
+
+    Uses one broadcast discovery datagram; no subnet or port scan. A caller may
+    supply ``probe`` for tests or a platform-specific discovery implementation.
+    """
+    if probe is not None:
+        return await probe()
+
+    def discover() -> str | None:
+        request = ONetV2.packet(1, 0x1000)
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
+            udp.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            udp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            udp.settimeout(timeout)
+            udp.bind(("", 5959))
+            udp.sendto(request, ("255.255.255.255", 5959))
+            while True:
+                raw, address = udp.recvfrom(2048)
+                _transaction, packet_type, _payload = parse_packet(raw)
+                if packet_type == 0x10FF:
+                    return address[0]
+
+    try:
+        return await asyncio.to_thread(discover)
+    except (OSError, TimeoutError, ValueError):
+        return None
 
 
 async def async_apply_router_initial_config(

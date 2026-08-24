@@ -10,7 +10,7 @@ from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
 
 from .const import CONF_HOST, CONF_PASSWORD, DOMAIN
-from .onboarding import async_apply_router_initial_config
+from .onboarding import async_apply_router_initial_config, async_discover_gateway_host
 from .transport import open_authenticated_session
 
 CONF_SETUP_MODE = "setup_mode"
@@ -94,14 +94,19 @@ class OaseFmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_home_host(self, user_input: dict[str, str] | None = None) -> FlowResult:
-        """Store the DHCP-resolved LAN address after AP provisioning."""
+        """Discover the new DHCP address across active host interfaces."""
         if user_input is not None:
             return await self._async_create_gateway_entry(
                 user_input[CONF_HOME_HOST], self._onboarding_data[CONF_PASSWORD]
             )
+        discovered_host = await async_discover_gateway_host()
+        if discovered_host is not None:
+            return await self._async_create_gateway_entry(
+                discovered_host, self._onboarding_data[CONF_PASSWORD]
+            )
         return self.async_show_form(
             step_id="home_host",
-            description_placeholders={"hint": "Read the DHCP address from your router, then continue."},
+            description_placeholders={"hint": "Automatic LAN discovery timed out. Enter the DHCP address from your router."},
             data_schema=vol.Schema({vol.Required(CONF_HOME_HOST): str}),
         )
 

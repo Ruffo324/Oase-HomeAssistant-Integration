@@ -36,6 +36,24 @@ def test_ap_onboarding_path_shows_wifi_credentials_form() -> None:
     assert "wifi_password" in str(result["data_schema"])
 
 
+def test_ap_onboarding_home_host_auto_discovers_gateway(monkeypatch) -> None:
+    flow = OaseFmConfigFlow()
+    flow._onboarding_data = {"password": "x"}
+
+    async def discover() -> str:
+        return "192.168.178.102"
+
+    async def create(host: str, password: str):
+        return {"type": "create_entry", "data": {"host": host, "password": password}}
+
+    monkeypatch.setattr("custom_components.oase_fm.config_flow.async_discover_gateway_host", discover)
+    flow._async_create_gateway_entry = create
+    result = asyncio.run(flow.async_step_home_host())
+
+    assert result["type"] == "create_entry"
+    assert result["data"]["host"] == "192.168.178.102"
+
+
 def test_create_gateway_entry() -> None:
     flow = OaseFmConfigFlow()
 
