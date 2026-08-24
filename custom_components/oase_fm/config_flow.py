@@ -10,7 +10,11 @@ from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
 
 from .const import CONF_HOST, CONF_PASSWORD, DOMAIN
-from .onboarding import async_apply_router_initial_config, async_discover_gateway_host
+from .onboarding import (
+    async_apply_router_initial_config,
+    async_discover_gateway_host,
+    async_scan_wifi_ssids,
+)
 from .transport import open_authenticated_session
 
 CONF_SETUP_MODE = "setup_mode"
@@ -56,7 +60,7 @@ class OaseFmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_ap_onboard(self, user_input: dict[str, str] | None = None) -> FlowResult:
-        """Send DHCP home-Wi-Fi config while Home Assistant can reach the AP."""
+        """Authenticate to the gateway AP, then scan through its Wi-Fi radio."""
         errors: dict[str, str] = {}
         if user_input is not None:
             ap_host = user_input[CONF_HOST]
@@ -69,28 +73,59 @@ class OaseFmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
 
             try:
-                await async_apply_router_initial_config(
-                    open_session,
-                    device_password,
-                    user_input[CONF_WIFI_SSID],
-                    user_input[CONF_WIFI_PASSWORD],
-                )
+                ssids = await async_scan_wifi_ssids(open_session)
             except (ConnectionError, OSError, TimeoutError, ValueError):
                 errors["base"] = "cannot_connect"
             else:
-                self._onboarding_data = user_input
-                return await self.async_step_home_host()
+                self._onboarding_data = {CONF_HOST: ap_host, CONF_PASSWORD: device_password}
+                return await self.async_step_ap_wifi(ssids=ssids)
         return self.async_show_form(
             step_id="ap_onboard",
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_HOST, default="192.168.1.1"): str,
                     vol.Required(CONF_PASSWORD): str,
-                    vol.Required(CONF_WIFI_SSID): str,
-                    vol.Required(CONF_WIFI_PASSWORD): str,
                 }
             ),
             errors=errors,
+        )
+
+    async def async_step_ap_wifi(
+        self, user_input: dict[str, str] | None = None, *, ssids: list[str] | None = None
+    ) -> FlowResult:
+        """Choose a Wi-Fi SSID reported by the FM-Master, then provision it."""
+        if ssids is not None:
+            self._scanned_ssids = ssids
+        if user_input is not None:
+            ap_host = self._onboarding_data[CONF_HOST]
+            device_password = self._onboarding_data[CONF_PASSWORD]
+            certificate_directory = Path(self.hass.config.path(".storage", DOMAIN, "onboarding"))
+
+            async def open_session():
+                return await open_authenticated_session(
+                    ap_host, device_password, str(certificate_directory), callback_port=5999
+                )
+
+            try:
+                await async_apply_router_initial_config(
+                    open_session, device_password, user_input[CONF_WIFI_SSID], user_input[CONF_WIFI_PASSWORD]
+                )
+            except (ConnectionError, OSError, TimeoutError, ValueError):
+                return self.async_show_form(
+                    step_id="ap_wifi", data_schema=self._wifi_schema(), errors={"base": "cannot_connect"}
+                )
+            self._onboarding_data[CONF_WIFI_SSID] = user_input[CONF_WIFI_SSID]
+            return await self.async_step_home_host()
+        return self.async_show_form(step_id="ap_wifi", data_schema=self._wifi_schema())
+
+    def _wifi_schema(self) -> vol.Schema:
+        choices = {ssid: ssid for ssid in getattr(self, "_scanned_ssids", [])}
+        ssid_field = vol.In(choices) if choices else str
+        return vol.Schema(
+            {
+                vol.Required(CONF_WIFI_SSID): ssid_field,
+                vol.Required(CONF_WIFI_PASSWORD): str,
+            }
         )
 
     async def async_step_home_host(self, user_input: dict[str, str] | None = None) -> FlowResult:
