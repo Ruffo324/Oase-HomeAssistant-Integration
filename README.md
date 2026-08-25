@@ -2,6 +2,13 @@
 
 Local Home Assistant custom integration for the four FM-Master outlets.
 
+## Visual asset
+
+`custom_components/oase_fm/icon.svg` is an original abstract relay-mesh mark:
+it contains no OASE wordmark, logo geometry, or proprietary typeface. It is
+included as repository artwork only; Home Assistant's integration icon registry
+may require a separate brands-repository submission before displaying it in UI.
+
 ## Status
 
 Protocol, authentication, state reads, and four-outlet switching are verified
