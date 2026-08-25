@@ -10,6 +10,7 @@ from custom_components.oase_fm.config_flow import (
 def test_config_flow_shows_mode_picker() -> None:
     flow = OaseFmConfigFlow()
     result = asyncio.run(flow.async_step_user())
+
     assert result["type"] == "form"
     assert result["step_id"] == "user"
     assert "setup_mode" in str(result["data_schema"])
@@ -18,32 +19,21 @@ def test_config_flow_shows_mode_picker() -> None:
 def test_existing_lan_path_shows_host_and_password_form() -> None:
     flow = OaseFmConfigFlow()
     result = asyncio.run(flow.async_step_user({"setup_mode": MODE_EXISTING}))
+
     assert result["type"] == "form"
     assert result["step_id"] == "existing"
-
-
-def test_ap_onboarding_path_starts_with_gateway_access_form() -> None:
-    flow = OaseFmConfigFlow()
-    result = asyncio.run(flow.async_step_user({"setup_mode": MODE_AP_ONBOARD}))
-    assert result["type"] == "form"
-    assert result["step_id"] == "ap_onboard"
     assert "host" in str(result["data_schema"])
     assert "password" in str(result["data_schema"])
-    assert "wifi_ssid" not in str(result["data_schema"])
 
 
-def test_scanned_ssid_step_offers_gateway_wifi_results(monkeypatch) -> None:
+def test_ap_onboarding_path_shows_wifi_credentials_form() -> None:
     flow = OaseFmConfigFlow()
-    flow.hass = type("Hass", (), {"config": type("Config", (), {"path": lambda *_args: "/tmp"})()})()
+    result = asyncio.run(flow.async_step_user({"setup_mode": MODE_AP_ONBOARD}))
 
-    async def scan(_session):
-        return ["strong-home", "other-home"]
-
-    monkeypatch.setattr("custom_components.oase_fm.config_flow.async_scan_wifi_ssids", scan)
-    result = asyncio.run(flow.async_step_ap_onboard({"host": "192.168.1.1", "password": "x"}))
     assert result["type"] == "form"
-    assert result["step_id"] == "ap_wifi"
-    assert "strong-home" in str(result["data_schema"])
+    assert result["step_id"] == "ap_onboard"
+    assert "wifi_ssid" in str(result["data_schema"])
+    assert "wifi_password" in str(result["data_schema"])
 
 
 def test_ap_onboarding_home_host_auto_discovers_gateway(monkeypatch) -> None:
@@ -59,6 +49,7 @@ def test_ap_onboarding_home_host_auto_discovers_gateway(monkeypatch) -> None:
     monkeypatch.setattr("custom_components.oase_fm.config_flow.async_discover_gateway_host", discover)
     flow._async_create_gateway_entry = create
     result = asyncio.run(flow.async_step_home_host())
+
     assert result["type"] == "create_entry"
     assert result["data"]["host"] == "192.168.178.102"
 
@@ -71,6 +62,9 @@ def test_create_gateway_entry() -> None:
 
     flow.async_set_unique_id = set_unique_id
     flow._abort_if_unique_id_configured = lambda: None
+
     result = asyncio.run(flow._async_create_gateway_entry("192.168.178.102", "x"))
+
     assert result["type"] == "create_entry"
     assert result["data"]["host"] == "192.168.178.102"
+    assert result["data"]["password"] == "x"

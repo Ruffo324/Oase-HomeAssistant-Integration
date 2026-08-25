@@ -56,42 +56,6 @@ def build_router_initial_config(device_password: str, ssid: str, wifi_password: 
     return payload
 
 
-def parse_wifi_scan_reply(payload: bytes) -> list[str]:
-    """Decode the FM-Master GetSsidInfo reply and prefer strongest APs."""
-    if not payload:
-        raise ValueError("empty Wi-Fi scan reply")
-    entries: dict[str, int] = {}
-    cursor = 1
-    for _ in range(payload[0]):
-        if cursor >= len(payload):
-            raise ValueError("truncated Wi-Fi scan reply")
-        length = payload[cursor]
-        cursor += 1
-        if cursor + length >= len(payload):
-            raise ValueError("truncated Wi-Fi scan entry")
-        ssid = payload[cursor : cursor + length].decode("utf-8", "replace")
-        cursor += length
-        rssi = int.from_bytes(payload[cursor : cursor + 1], "little", signed=True)
-        cursor += 1
-        if ssid:
-            entries[ssid] = max(entries.get(ssid, -128), rssi)
-    if cursor != len(payload):
-        raise ValueError("unexpected Wi-Fi scan trailing data")
-    return [ssid for ssid, _rssi in sorted(entries.items(), key=lambda item: (-item[1], item[0]))]
-
-
-async def async_scan_wifi_ssids(open_session: Callable[[], Awaitable[object]]) -> list[str]:
-    """Ask the FM-Master radio for nearby home Wi-Fi SSIDs."""
-    session = await open_session()
-    try:
-        packet_type, payload = await session.request(0x9400, b"")
-    finally:
-        await session.close()
-    if packet_type != 0x94FF:
-        raise ConnectionError("FM-Master rejected Wi-Fi scan")
-    return parse_wifi_scan_reply(payload)
-
-
 async def async_discover_gateway_host(
     probe: Callable[[], Awaitable[str | None]] | None = None,
     *,
