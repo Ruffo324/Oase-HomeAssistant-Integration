@@ -29,7 +29,7 @@ class OaseFmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input: dict[str, str] | None = None) -> FlowResult:
         if user_input is not None:
             if user_input[CONF_SETUP_MODE] == MODE_AP_ONBOARD:
-                return await self.async_step_ap_onboard()
+                return await self.async_step_ap_access()
             return await self.async_step_existing()
         return self.async_show_form(
             step_id="user",
@@ -55,12 +55,27 @@ class OaseFmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ),
         )
 
-    async def async_step_ap_onboard(self, user_input: dict[str, str] | None = None) -> FlowResult:
-        """Send DHCP home-Wi-Fi config while Home Assistant can reach the AP."""
+    async def async_step_ap_access(self, user_input: dict[str, str] | None = None) -> FlowResult:
+        """Accept the gateway AP endpoint after HA OS joined that AP."""
+        if user_input is not None:
+            self._onboarding_data = user_input
+            return await self.async_step_home_wifi()
+        return self.async_show_form(
+            step_id="ap_access",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_HOST, default="192.168.1.1"): str,
+                    vol.Required(CONF_PASSWORD): str,
+                }
+            ),
+        )
+
+    async def async_step_home_wifi(self, user_input: dict[str, str] | None = None) -> FlowResult:
+        """Provision the gateway after HA OS already chose its own Wi-Fi AP."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            ap_host = user_input[CONF_HOST]
-            device_password = user_input[CONF_PASSWORD]
+            ap_host = self._onboarding_data[CONF_HOST]
+            device_password = self._onboarding_data[CONF_PASSWORD]
             certificate_directory = Path(self.hass.config.path(".storage", DOMAIN, "onboarding"))
 
             async def open_session():
@@ -78,14 +93,12 @@ class OaseFmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except (ConnectionError, OSError, TimeoutError, ValueError):
                 errors["base"] = "cannot_connect"
             else:
-                self._onboarding_data = user_input
+                self._onboarding_data.update(user_input)
                 return await self.async_step_home_host()
         return self.async_show_form(
-            step_id="ap_onboard",
+            step_id="home_wifi",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_HOST, default="192.168.1.1"): str,
-                    vol.Required(CONF_PASSWORD): str,
                     vol.Required(CONF_WIFI_SSID): str,
                     vol.Required(CONF_WIFI_PASSWORD): str,
                 }

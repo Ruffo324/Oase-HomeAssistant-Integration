@@ -30,13 +30,15 @@ Assistant must be reachable by the FM-Master over the same local network.
 For an already reachable gateway, choose **Existing LAN gateway** and enter its
 LAN address plus device password.
 
-For a factory-reset gateway, configure the Home Assistant host's spare Wi-Fi
-adapter to join the FM-Master access point while Ethernet remains its default
-home-network route. Choose **Gateway AP onboarding**, enter the AP host, device
-password, home Wi-Fi SSID, and home Wi-Fi password. The integration submits
-DHCP router configuration, then automatically discovers the new LAN address
-through one O-Net broadcast. If discovery times out, it offers one manual DHCP
-address fallback.
+For a factory-reset gateway, first configure the Home Assistant host's spare
+Wi-Fi adapter to join the FM-Master access point while Ethernet remains its
+default home-network route. Then choose **Gateway AP onboarding**:
+
+1. Enter only the AP host (`192.168.1.1`) and device password.
+2. Enter the destination home Wi-Fi SSID and password on the next screen.
+3. The integration submits DHCP router configuration, then discovers the new
+   LAN address through one O-Net broadcast.
+4. If discovery times out, it offers one manual DHCP address fallback.
 
 A custom integration cannot configure or switch Home Assistant OS network
 adapters. Configure the spare WLAN adapter once in **Settings → System →
