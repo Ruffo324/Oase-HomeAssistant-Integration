@@ -40,10 +40,11 @@ default home-network route. Then choose **Gateway AP onboarding**:
    LAN address through one O-Net broadcast.
 4. If discovery times out, it offers one manual DHCP address fallback.
 
-A custom integration cannot configure or switch Home Assistant OS network
-adapters. Configure the spare WLAN adapter once in **Settings → System →
-Network**; the integration then uses its AP route while normal HA operation
-continues over Ethernet.
+For zero-manual-action AP joining on HA OS/Supervised, install the optional
+**OASE FM-Master Onboarding** App from `addons/oase_fm_onboard`. It scans spare
+Wi-Fi adapters, lists only FM-Master APs, and joins the selected AP while
+Ethernet stays primary. Then continue the integration's Gateway AP onboarding.
+HA Container/Core lacks the Supervisor Network API required for this App.
 
 ## Local operation
 

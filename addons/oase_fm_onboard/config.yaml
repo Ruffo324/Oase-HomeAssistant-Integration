@@ -1,0 +1,24 @@
+name: OASE FM-Master Onboarding
+slug: oase_fm_onboard
+description: Scan and join a reset FM-Master access point while Ethernet remains primary.
+version: 0.1.0
+url: https://github.com/Ruffo324/Oase-HomeAssistant-Integration
+arch:
+  - amd64
+  - aarch64
+init: false
+startup: application
+ingress: true
+ingress_port: 8099
+ingress_stream: true
+panel_icon: mdi:wifi-sync
+panel_title: OASE FM-Master Onboarding
+homeassistant_api: true
+hassio_api: true
+hassio_role: manager
+host_dbus: true
+host_network: true
+privileged:
+  - NET_ADMIN
+schema: {}
+options: {}
