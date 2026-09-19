@@ -9,10 +9,14 @@ Optional HA OS/Supervised companion App for reset-gateway AP access.
 3. Lists only SSIDs beginning `OASE FM-Master`.
 4. Connects the selected spare Wi-Fi interface through the Supervisor Network API.
 5. Leaves Ethernet untouched and primary.
+6. Starts the existing **OASE FM-Master Local** config flow through the
+   authenticated HA Core proxy.
+7. Provisions the FM-Master to destination home Wi-Fi, discovers its DHCP
+   address, verifies it, and creates the integration entry.
 
-After a successful join, add **OASE FM-Master Local** and select **Gateway AP
-onboarding**. The integration provisions the gateway onto the destination home
-Wi-Fi and discovers its DHCP address.
+The App runs the complete AP onboarding sequence after AP join. It sends device
+and home-Wi-Fi credentials only to the HA Core config-flow request, does not
+persist them, and clears browser form fields after use.
 
 ## Requirements
 

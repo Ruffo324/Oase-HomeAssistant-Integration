@@ -10,6 +10,32 @@ from collections.abc import Awaitable, Callable
 from .transport import ONetV2, parse_packet
 
 
+def build_onboarding_handoff(
+    device_password: str,
+    wifi_ssid: str,
+    wifi_password: str,
+    *,
+    gateway_host: str = "192.168.1.1",
+) -> dict[str, str]:
+    """Validate the transient data passed from the privileged HA OS App.
+
+    The App only joins the spare Wi-Fi adapter. HA Core remains the sole
+    O-Net/TLS transport owner and consumes this object without persistence.
+    """
+    if gateway_host != "192.168.1.1":
+        raise ValueError("gateway host must be the FM-Master AP host")
+    if not all((device_password, wifi_ssid, wifi_password)):
+        raise ValueError("onboarding credentials must not be empty")
+    if len(wifi_ssid.encode("utf-8")) > 32 or len(wifi_password.encode("utf-8")) > 64:
+        raise ValueError("Wi-Fi credential exceeds FM-Master limits")
+    return {
+        "gateway_host": gateway_host,
+        "device_password": device_password,
+        "wifi_ssid": wifi_ssid,
+        "wifi_password": wifi_password,
+    }
+
+
 def _fixed(value: str, length: int) -> bytes:
     encoded = value.encode("utf-8")
     if len(encoded) > length:

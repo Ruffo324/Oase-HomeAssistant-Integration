@@ -40,11 +40,13 @@ default home-network route. Then choose **Gateway AP onboarding**:
    LAN address through one O-Net broadcast.
 4. If discovery times out, it offers one manual DHCP address fallback.
 
-For zero-manual-action AP joining on HA OS/Supervised, install the optional
+For zero-manual-action AP onboarding on HA OS/Supervised, install the optional
 **OASE FM-Master Onboarding** App from `addons/oase_fm_onboard`. It scans spare
-Wi-Fi adapters, lists only FM-Master APs, and joins the selected AP while
-Ethernet stays primary. Then continue the integration's Gateway AP onboarding.
-HA Container/Core lacks the Supervisor Network API required for this App.
+Wi-Fi adapters, lists only FM-Master APs, joins the selected AP while Ethernet
+stays primary, then launches the integration's AP config flow through HA's
+authenticated internal proxy. The App provisions home Wi-Fi, waits for LAN
+discovery/verification, and creates the config entry. HA Container/Core lacks
+the Supervisor Network API required for this App.
 
 ## Local operation
 
