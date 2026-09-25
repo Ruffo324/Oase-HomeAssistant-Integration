@@ -100,17 +100,18 @@ async def provision_gateway(request: web.Request) -> web.Response:
 
 async def index(_: web.Request) -> web.Response:
     return web.Response(text="""<!doctype html><meta charset=utf-8><title>FM-Master Onboarding</title>
-<style>body{font:16px system-ui;margin:2rem;max-width:38rem}label,input,select,button{display:block;margin:.6rem 0;width:100%;box-sizing:border-box}button{padding:.6rem}#status{white-space:pre-wrap}</style>
+<style>body{font:16px/1.45 system-ui;margin:2rem;max-width:42rem}label,input,select,button{display:block;margin:.55rem 0;width:100%;box-sizing:border-box}input,select{padding:.55rem}button{padding:.7rem}small{display:block;color:#68768a;margin:-.25rem 0 .8rem}section{border:1px solid #7d8b9d;border-radius:.6rem;padding:1rem;margin:1rem 0}#status{white-space:pre-wrap}</style>
 <h2>FM-Master AP onboarding</h2><p>Ethernet remains the primary connection. This App uses only a spare Wi-Fi adapter.</p>
+<section><h3>Step 1 — Connect the HA spare Wi-Fi adapter to the reset gateway</h3><p>Tap scan, then select the FM-Master Wi-Fi whose name starts with <b>OASE FM-Master…</b>. Do not select your normal home Wi-Fi here.</p>
 <button onclick='scan()'>Scan FM-Master gateways</button>
-<label>Gateway AP<select id=ap required><option>Scan first</option></select></label>
-<label>Gateway AP password<input id=apPassword type=password required autocomplete=new-password></label>
-<button onclick='join()'>Join gateway AP</button>
-<hr><h3>Provision gateway home Wi-Fi</h3><p>Available after AP join. Credentials are sent once to Home Assistant and not stored by this App.</p>
-<label>FM-Master device password<input id=devicePassword type=password autocomplete=new-password></label>
-<label>Home Wi-Fi SSID<input id=homeSsid autocomplete=off></label>
-<label>Home Wi-Fi password<input id=homePassword type=password autocomplete=new-password></label>
-<button onclick='provision()'>Provision and add integration</button><p id=status></p>
+<label>Gateway AP<select id=ap required><option>Scan first</option></select></label><small>Select the FM-Master Wi-Fi found by this App.</small>
+<label>Gateway AP password<input id=apPassword type=password required autocomplete=new-password></label><small>FM-Master access-point Wi-Fi password. This is not the device password and not your home Wi-Fi password.</small>
+<button onclick='join()'>Join gateway AP</button></section>
+<section><h3>Step 2 — Move the FM-Master itself onto your home Wi-Fi</h3><p>Complete this only after Step 1 says the gateway AP is joined. Credentials are sent once to Home Assistant and not stored by this App.</p>
+<label>FM-Master device password<input id=devicePassword type=password autocomplete=new-password></label><small>Device/O-Net password used to authenticate to the FM-Master. This is not either Wi-Fi password.</small>
+<label>Home Wi-Fi SSID<input id=homeSsid autocomplete=off></label><small>Home Wi-Fi network name: the SSID the FM-Master should join, for example <b>LoboMifi</b>.</small>
+<label>Home Wi-Fi password<input id=homePassword type=password autocomplete=new-password></label><small>Home Wi-Fi password for that network.</small>
+<button onclick='provision()'>Provision and add integration</button></section><p><b>Do not enter credentials in Home Assistant chat.</b></p><p id=status></p>
 <script>
 async function api(path,body){let r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw Error(await r.text());return r.json()}
 async function scan(){let s=document.querySelector('#status'),a=document.querySelector('#ap');s.textContent='Scanning…';try{let r=await fetch('api/scan');let x=await r.json();a.innerHTML=x.map(v=>`<option value="${v.interface}|${v.ssid}">${v.ssid} (${v.signal}%) — ${v.interface}</option>`).join('')||'<option>No FM-Master AP found</option>';s.textContent=x.length?'Select a gateway AP.':'No FM-Master AP found.'}catch(e){s.textContent='Scan failed: '+e}}
