@@ -16,6 +16,7 @@ panel_title: OASE FM-Master Onboarding
 homeassistant_api: true
 hassio_api: true
 hassio_role: manager
+# The Supervisor token must be injected for the authenticated network/Core proxy.
 host_dbus: true
 host_network: true
 privileged:

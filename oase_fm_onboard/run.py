@@ -7,7 +7,10 @@ import os
 from aiohttp import web, ClientSession
 
 SUPERVISOR = "http://supervisor"
-TOKEN = os.environ["SUPERVISOR_TOKEN"]
+TOKEN = os.environ.get("SUPERVISOR_TOKEN")
+if not TOKEN:
+    # Expose names only; never write values/secrets to the app log.
+    raise RuntimeError(f"Supervisor API token was not injected; env names: {sorted(os.environ)}")
 HEADERS = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
 
 
