@@ -3,4 +3,5 @@ FROM ${BUILD_FROM}
 
 RUN apk add --no-cache python3 py3-aiohttp
 COPY run.py /run.py
-CMD ["python3", "/run.py"]
+# s6 exports SUPERVISOR_TOKEN only through with-contenv.
+CMD ["/usr/bin/with-contenv", "python3", "/run.py"]
